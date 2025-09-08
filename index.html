@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 2rem;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl text-center">
+        <h1 class="text-4xl font-bold mb-6 text-gray-800">AI Image Generator</h1>
+        <p class="text-gray-600 mb-6">Enter a detailed description of the image you want to create and watch the magic happen!</p>
+
+        <div class="mb-6">
+            <input type="text" id="promptInput" placeholder="A futuristic city at sunset, neon lights, hyperrealistic" class="w-full p-4 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-colors duration-200">
+        </div>
+
+        <button id="generateButton" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+            Generate Image
+        </button>
+
+        <div id="imageContainer" class="mt-8 flex justify-center items-center h-96 bg-gray-200 rounded-lg overflow-hidden relative border-2 border-gray-300">
+            <div id="loader" class="loader hidden"></div>
+            <img id="generatedImage" src="" alt="Generated Image" class="w-full h-full object-contain hidden">
+            <p id="placeholderText" class="text-gray-400">Your image will appear here</p>
+            <p id="errorText" class="text-red-500 hidden"></p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const promptInput = document.getElementById('promptInput');
+            const generateButton = document.getElementById('generateButton');
+            const imageContainer = document.getElementById('imageContainer');
+            const loader = document.getElementById('loader');
+            const generatedImage = document.getElementById('generatedImage');
+            const placeholderText = document.getElementById('placeholderText');
+            const errorText = document.getElementById('errorText');
+
+            generateButton.addEventListener('click', generateImage);
+            promptInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    generateImage();
+                }
+            });
+
+            async function generateImage() {
+                const prompt = promptInput.value.trim();
+                if (!prompt) {
+                    errorText.textContent = "Please enter a prompt to generate an image.";
+                    errorText.classList.remove('hidden');
+                    return;
+                }
+
+                // Show loading state
+                imageContainer.classList.remove('bg-gray-200');
+                generatedImage.classList.add('hidden');
+                placeholderText.classList.add('hidden');
+                errorText.classList.add('hidden');
+                loader.classList.remove('hidden');
+                generateButton.disabled = true;
+
+                try {
+                    const payload = {
+                        instances: [{ prompt: prompt }],
+                        parameters: { "sampleCount": 1 }
+                    };
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API call failed with status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                        const base64Data = result.predictions[0].bytesBase64Encoded;
+                        const imageUrl = `data:image/png;base64,${base64Data}`;
+                        generatedImage.src = imageUrl;
+                        generatedImage.classList.remove('hidden');
+                    } else {
+                        throw new Error("Invalid response from the API. Could not find image data.");
+                    }
+
+                } catch (error) {
+                    console.error("Error generating image:", error);
+                    errorText.textContent = `Error: ${error.message}. Please try again.`;
+                    errorText.classList.remove('hidden');
+                    placeholderText.textContent = "Your image will appear here";
+                    placeholderText.classList.remove('hidden');
+                } finally {
+                    loader.classList.add('hidden');
+                    generateButton.disabled = false;
+                }
+            }
+        });
+    </script>
+
+</body>
+      </html>
